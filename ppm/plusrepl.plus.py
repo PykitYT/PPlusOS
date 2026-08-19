@@ -1,8 +1,21 @@
-from __main__ import write_arguments
 program_command = "plusrepl"
 
 class Main(Program):
     def main(self):
+        def write_arguments(io, args, kernel=None):
+            args = list(args)
+            while args:
+                if kernel is not None:
+                    process = None
+                    for p in kernel.processes:
+                        if p.io is io:
+                            process = p
+                            break
+                    if process is None or process.finished:
+                        return
+                if io.is_reading():
+                    io.send(args.pop(0))
+                yield
         io = self.io
         fs = self.syskernel.fs
 
