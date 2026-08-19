@@ -1,8 +1,9 @@
+program_command = "pcalc"
 class CalcCommand(Program):
     def main(self):
         io = self.io
-        io.write("calc (empty or 'exit' to quit)\n")
-        io.write("examples: 2+2  10/3  2**8  (1+2)*3\n")
+        io.write("welcome to pcalc! send empty line or 'exit' to quit\n")
+        io.write("examples: 2+2  10/3  2**8  (1+2)*3  5+5\n")
 
         while True:
             io.write("calc> ")
