@@ -23,7 +23,7 @@ class Main(Program):
 
         # Важно: local_vars = {}, break вместо return, нормальные отступы
         code = (
-            "local_vars = {}\n"
+            "local_vars = {'print': print, 'input': input}\n"
             "print('PlusRepl on DotPy')\n"
             "print('Type exit to quit')\n"
             "while True:\n"
