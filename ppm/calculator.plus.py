@@ -1,5 +1,5 @@
 program_command = "pcalc"
-class MainProgram):
+class Main(Program):
     def main(self):
         io = self.io
         io.write("welcome to pcalc! send empty line or 'exit' to quit\n")
