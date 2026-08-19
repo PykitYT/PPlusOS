@@ -7,7 +7,7 @@ class Main(Program):
         cwd = "/"
 
         def clear():
-            io.write("\n"*50)
+            pass
 
         def norm(path):
             path = (path or "").strip()
