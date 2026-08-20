@@ -2,16 +2,77 @@ program_command = "xLauncher"
 
 class Main(Program):
     def main(self):
+        import json
         import pygame as pg
 
-        try:
-            XC = XClient
-        except NameError:
-            self.io.write("XClient not found\n")
-            return 1
+        XPPUI_PORT = 99
+
+        class XClient:
+            def __init__(self, syskernel, title="App", w=480, h=320, port=XPPUI_PORT):
+                self.k = syskernel
+                self.port = port
+                self.title = title
+                self.w = w
+                self.h = h
+                self.sock = None
+                self._rx = ""
+
+            def connect(self):
+                self.sock = self.k.socket("client", self.port)
+                self._send({"t": "hello", "title": self.title, "w": self.w, "h": self.h})
+                return self
+
+            def _send(self, obj):
+                if self.sock is None:
+                    return
+                try:
+                    self.sock.send(json.dumps(obj, ensure_ascii=False) + "\n")
+                except Exception:
+                    pass
+
+            def fill(self, r, g, b):
+                self._send({"t": "fill", "r": int(r), "g": int(g), "b": int(b)})
+
+            def text(self, x, y, s, c=(220, 220, 220)):
+                self._send({"t": "text", "x": int(x), "y": int(y), "s": str(s), "c": list(c)})
+
+            def rect(self, x, y, w, h, c=(255, 255, 255)):
+                self._send({"t": "rect", "x": int(x), "y": int(y), "w": int(w), "h": int(h), "c": list(c)})
+
+            def flip(self):
+                self._send({"t": "flip"})
+
+            def close(self):
+                self._send({"t": "close"})
+                try:
+                    if self.sock:
+                        self.sock.close()
+                except Exception:
+                    pass
+                self.sock = None
+
+            def poll(self):
+                if self.sock is None:
+                    return []
+                while True:
+                    chunk = self.sock.read()
+                    if not chunk:
+                        break
+                    self._rx += chunk
+                out = []
+                while "\n" in self._rx:
+                    line, self._rx = self._rx.split("\n", 1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        out.append(json.loads(line))
+                    except Exception:
+                        pass
+                return out
 
         W, H = 480, 520
-        xc = XC(self.syskernel, "xLauncher", W, H)
+        xc = XClient(self.syskernel, "xLauncher", W, H)
         try:
             xc.connect()
         except Exception:
@@ -22,16 +83,13 @@ class Main(Program):
         sel = 0
         scroll = 0
         VIS = 14
-        status = "Enter:run  A:add  R:refresh  Del:remove from list"
+        status = "Enter:run  A:add  R:refresh"
         mode = "list"
         buf = ""
-        extra = []  # ручные имена
+        extra = []
 
-        def is_x_ui(name: str) -> bool:
-            # x + заглавная: xConsole, xPPM, xNan...
-            if len(name) < 2:
-                return False
-            return name[0] == "x" and name[1].isupper()
+        def is_x_ui(name):
+            return len(name) >= 2 and name[0] == "x" and name[1].isupper()
 
         def scan():
             found = []
@@ -53,7 +111,7 @@ class Main(Program):
                 fs.run_program("/bin/" + name)
                 status = "started " + name
             else:
-                status = "not in /bin: " + name
+                status = "missing " + name
 
         def redraw(apps):
             xc.fill(18, 20, 28)
@@ -72,7 +130,7 @@ class Main(Program):
                 y += 30
             if mode == "add":
                 xc.rect(40, 200, W - 80, 90, (50, 55, 75))
-                xc.text(55, 215, "Add program name:", (255, 255, 255))
+                xc.text(55, 215, "Add name:", (255, 255, 255))
                 xc.text(55, 245, buf + "█", (180, 255, 180))
             xc.rect(0, H - 28, W, 28, (30, 32, 42))
             xc.text(12, H - 22, status[:60], (150, 160, 170))
@@ -92,11 +150,10 @@ class Main(Program):
                 if t in ("quit", "close"):
                     xc.close()
                     return 0
-
                 if mode == "add":
                     if t == "text":
                         ch = e.get("s", "")
-                        if ch.isprintable() and ch not in "/\\":
+                        if ch and ch.isprintable() and ch not in "/\\":
                             buf += ch
                     if t == "key":
                         k = e.get("key")
@@ -111,7 +168,6 @@ class Main(Program):
                             mode = "list"
                             buf = ""
                     continue
-
                 if t == "key":
                     k = e.get("key")
                     if k == pg.K_UP:
@@ -120,14 +176,6 @@ class Main(Program):
                         sel = min(len(apps) - 1, sel + 1)
                     elif k in (pg.K_RETURN, pg.K_KP_ENTER) and apps:
                         run_cmd(apps[sel])
-                    elif k == pg.K_DELETE and apps:
-                        name = apps[sel]
-                        if name in extra:
-                            extra.remove(name)
-                            status = "removed from list " + name
-                        else:
-                            status = "auto app — use ppm remove"
-
                 if t == "text":
                     ch = (e.get("s") or "").lower()
                     if ch == "a":
@@ -135,6 +183,5 @@ class Main(Program):
                         buf = ""
                     elif ch == "r":
                         status = "refreshed"
-
             redraw(apps)
             yield
