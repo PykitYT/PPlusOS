@@ -1,5 +1,5 @@
 program_name = "phttpserver"
-class HTTPServer(Program):
+class Main(Program):
     def main(self):
         def request_decode(data: str):
             firstline = data.splitlines()[0]
